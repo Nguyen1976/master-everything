@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node tutor/engine.mjs:*)",
+      "Bash(node scripts/scan-materials.mjs:*)",
+      "Bash(node scripts/doctor.mjs:*)",
+      "Bash(npm run doctor)",
+      "Bash(npm run scan)",
+      "Read(materials/**)",
+      "Read(learning/**)",
+      "Read(notes/**)",
+      "Edit(learning/memory.md)",
+      "Write(materials/INDEX.md)",
+      "Edit(materials/INDEX.md)",
+      "Write(notes/**)",
+      "Edit(notes/**)",
+      "Write(practice/**)",
+      "Edit(practice/**)"
+    ]
+  }
+}

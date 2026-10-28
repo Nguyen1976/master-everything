@@ -1,0 +1,16 @@
+{
+  "description": "JavaScript, Node.js and TypeScript — YDKJS Yet, javascript.info, MDN, Node.js Learn/API/Best Practices, TS Handbook, TS Deep Dive, Type Challenges (~1 GB)",
+  "sources": [
+    { "dir": "javascript/ydkjs-yet", "repo": "https://github.com/getify/You-Dont-Know-JS.git" },
+    { "dir": "javascript/javascript-info", "repo": "https://github.com/javascript-tutorial/en.javascript.info.git" },
+    { "dir": "javascript/mdn-content", "repo": "https://github.com/mdn/content.git", "sparse": ["files/en-us/web/javascript"] },
+    { "dir": "javascript/the-js-way", "repo": "https://github.com/bpesquet/thejsway.git" },
+    { "dir": "nodejs/nodejs-learn", "repo": "https://github.com/nodejs/learn.git" },
+    { "dir": "nodejs/node-api", "repo": "https://github.com/nodejs/node.git", "sparse": ["doc/api"] },
+    { "dir": "nodejs/node-best-practices", "repo": "https://github.com/goldbergyoni/nodebestpractices.git" },
+    { "dir": "typescript/ts-handbook", "repo": "https://github.com/microsoft/TypeScript-Website.git", "sparse": ["packages/documentation/copy/en"] },
+    { "dir": "typescript/typescript-deep-dive", "repo": "https://github.com/basarat/typescript-book.git" },
+    { "dir": "typescript/concise-typescript-book", "repo": "https://github.com/gibbok/typescript-book.git" },
+    { "dir": "typescript/type-challenges", "repo": "https://github.com/type-challenges/type-challenges.git" }
+  ]
+}

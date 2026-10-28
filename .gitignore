@@ -1,0 +1,16 @@
+# Personal learning data — never commit
+learning/state.json
+learning/state.json.tmp
+learning/memory.md
+notes/*
+!notes/README.md
+practice/*
+!practice/README.md
+
+# Learner materials (often large or copyrighted)
+materials/*
+!materials/README.md
+
+node_modules/
+.DS_Store
+.claude/settings.local.json
