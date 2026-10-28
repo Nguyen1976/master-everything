@@ -16,7 +16,7 @@ The state file defaults to `learning/state.json`; set `TUTOR_STATE=/path/state.j
 
 | Command | Body / flags | Result |
 |---|---|---|
-| `status` | | `mode`, `intake_needed`, `profile`, `path`, `pending_question`, `due_reviews`, `next` (`id`, `type`, `sources`, `action`: `probe\|teach\|practice\|assess`, `stage`, `mastery`, `gate`), `complete`, `summary` |
+| `status` | | `mode`, `intake_needed`, `profile`, `path`, `pending_question` (with `status` open/answered and `learner_answer`), `ui_activity`, `due_reviews`, `next` (`id`, `type`, `sources`, `action`: `probe\|teach\|practice\|assess`, `stage`, `mastery`, `gate`), `complete`, `summary` |
 | `map` | | Markdown progress map of the current roadmap |
 | `paths` · `switch <id>` | | List roadmaps · change the current one |
 | `mode <outline\|study\|review>` | | |
@@ -27,8 +27,12 @@ The state file defaults to `learning/state.json`; set `TUTOR_STATE=/path/state.j
 | `explained <kpId> -` | `{"quote": "..."}` | Records that part of the objective was taught (not mastery) |
 | `quiz - [--replace]` | see below | Registers the open question and prints its card |
 | `show` | | Re-prints the open card |
-| `grade` | `--answer X` (choice/tf/fill) or `--score 0..1`; `--hints`; `--learner "text"` | Grades the open question: `correct`, `mastery`, `mastered`, `newly_mastered`, `next`, or a `review` schedule for mastered objectives |
+| `grade` | `--answer X` (choice/tf/fill) or `--score 0..1`; `--hints`; `--learner "text"`; `--via ui` | Grades the open question: `correct`, `mastery`, `mastered`, `newly_mastered`, `next`, or a `review` schedule for mastered objectives |
 | `assess <kpId> pass\|fail [--hints] -` | `{"feedback": "...", "learner_quote": "..."}` | Qualitative gate for concept/design |
+| `answer --text ".." [--via ui]` | | Stores the learner's answer to the open question for the tutor to grade (the dashboard uses it for short/code) |
+| `ack` | | Marks dashboard results listed in `status.ui_activity` as seen |
+| `record -` | normalized question + `learner_answer` and/or `score`, `kp` or `topic`, `via`, `quiz` | Records a graded attempt outside the open-question slot (quiz pages). Closed types are auto-graded |
+| `snapshot` | | Everything the dashboard renders: roadmaps with per-objective status/mastery/review, open question (no key), due and upcoming reviews, stats, recent mistakes |
 | `skip` | | Drops the open question, no credit |
 | `defer <kpId>` · `undefer <kpId>` | | Sets an objective aside without mastering it |
 | `repair <attemptId> void\|correct` | | Invalidates a bad attempt or marks it correct, then re-checks the gate |

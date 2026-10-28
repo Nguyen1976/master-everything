@@ -1,6 +1,8 @@
 # Personal learning data — never commit
 learning/state.json
 learning/state.json.tmp
+learning/quizzes/
+learning/.ui.json
 learning/memory.md
 notes/*
 !notes/README.md

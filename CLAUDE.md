@@ -13,11 +13,14 @@ How the pieces fit is described in `guide/ARCHITECTURE.md`. If the user is clear
 | `learning/memory.md` | Long-term memory about the learner (misconceptions, strengths, what teaching works) |
 | `notes/` | The learner's notebook (`/note`) |
 | `practice/` | Scratch space for exercises; run code here when the subject is programming |
+| `ui/` | Local web UI: live dashboard and quiz pages (`node ui/server.mjs --ensure` prints the URL; `node ui/quiz.mjs` manages quizzes). See `guide/UI.md` |
 
 ## Commands the learner can type
 
 `/ingest` add or refresh materials · `/roadmap` design or edit a roadmap · `/learn` continue studying · `/recall` spaced review · `/quiz` practice set · `/solve` worked solution · `/note` save a note · `/progress` dashboard.
-The learner may also just talk. Recognise intent ("let's review", "change the plan", "keep going", "I added a PDF") and act as the matching command would.
+The learner may also just talk. Recognise intent ("let's review", "change the plan", "keep going", "I added a PDF", "I finished the quiz") and act as the matching command would.
+
+**The chat and the browser work together.** The chat is where you teach and talk; the browser is where the learner *sees* and *does*: the dashboard (roadmap, progress, the open question, reviews, mistakes) and quiz pages. Share a link whenever seeing or clicking beats reading the terminal: the dashboard after building or changing a roadmap or on `/progress`, and a quiz page for every practice set. Always give the URL as plain text so it is clickable.
 
 ## Core principles
 
@@ -51,6 +54,8 @@ The learner's answer arrives as the **next message**: call `grade` for the open 
 | `practice` (memory/procedure) | `quiz` → `grade`, repeat until the engine reports `mastered: true` |
 | `assess` (concept/design) | Ask the learner to **explain it in their own words** (Feynman), judge it, then `assess <id> pass\|fail` |
 | A question is pending but the learner asks something else | Answer them and **keep the question open**. When they are ready, `show` re-prints it |
+| `ui_activity` is not empty | The learner answered in the dashboard and the engine graded it. Give feedback on each result as if they had answered here, then `ack` |
+| `pending_question.status: "answered"` | They wrote a short/code answer in the dashboard (`learner_answer`). Judge it and `grade --score` |
 | The learner wants to drop this question | `skip` (no credit), then a **different** question on the same objective |
 | The learner wants to set the objective aside | `defer <id>`: moves on **without** marking it mastered |
 | The learner reports a wrong question or answer key | Check it against the materials. If it is wrong, `repair <attemptId> void` or `correct`. Never keep false evidence or grind on a wrong key. A challenge alone is not proof of mastery |
@@ -112,5 +117,6 @@ Update it **at the end of a session**, or when something worth keeping happens (
 ## Engine
 
 `node tutor/engine.mjs help` lists every command; `guide/ENGINE.md` is the full reference.
-Common: `status`, `map`, `quiz -`, `show`, `grade`, `assess`, `explained`, `skip`, `defer`, `repair`, `bank --wrong`, `reviews`, `mode`, `profile -`, `build -`, `revise`.
+Common: `status`, `map`, `quiz -`, `show`, `grade`, `assess`, `explained`, `skip`, `defer`, `repair`, `bank --wrong`, `reviews`, `mode`, `profile -`, `build -`, `revise`, `ack`, `record -`.
+UI: `node ui/server.mjs --ensure [--open /path]` · `node ui/quiz.mjs new - [--open] | results <id> | review <id> <n> <score> [--feedback ".."] | list [--pending]`.
 If the engine answers `"ok": false`, read the error and fix the call — never work around it by editing `state.json`.

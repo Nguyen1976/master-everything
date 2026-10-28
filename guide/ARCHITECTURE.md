@@ -1,20 +1,22 @@
 # Architecture
 
-Master Everything adds no infrastructure of its own on top of Claude Code. **Claude Code is the agent loop and the interface**, the **filesystem is the knowledge base**, and a **single-file, dependency-free engine** keeps the one thing an LLM should not be trusted with: deciding when something has been learned.
+Master Everything adds almost no infrastructure of its own on top of Claude Code. **Claude Code is the agent loop and the conversation**, a **small local web server** gives the learner a live dashboard and quiz pages, the **filesystem is the knowledge base**, and a **single-file, dependency-free engine** keeps the one thing an LLM should not be trusted with: deciding when something has been learned.
 
 ```
-                 Learner  ⇄  Claude Code session (the UI)
-                                   │
-          ┌────────────────────────┼─────────────────────────┐
-          │                        │                         │
-   CLAUDE.md (protocol)   .claude/skills/* (workflows)   Read / Bash tools
-          │                        │                         │
-          └──────────────┬─────────┘                         │
-                         ▼                                   ▼
-             tutor/engine.mjs  (deterministic policy)   materials/ + INDEX.md
-                         │                              (the learner's sources)
-                         ▼
-     learning/state.json · learning/memory.md · notes/ · practice/
+   Learner ⇄ Claude Code session            Learner ⇄ Browser (dashboard, quizzes)
+                 │                                                │
+   ┌─────────────┼────────────────────┐               ui/server.mjs (127.0.0.1)
+   │             │                    │                           │
+ CLAUDE.md   .claude/skills/*   Read / Bash tools                 │
+ (protocol)  (workflows)              │                           │
+   └──────┬──────┘                    ▼                           │
+          │                    materials/ + INDEX.md              │
+          ▼                    (the learner's sources)            │
+   tutor/engine.mjs  ◄────────────────────────────────────────────┘
+   (deterministic policy: gate, scoring, reviews, question bank)
+          │
+          ▼
+   learning/state.json · quizzes/ · memory.md · notes/ · practice/
 ```
 
 ## Layers
@@ -27,6 +29,7 @@ Master Everything adds no infrastructure of its own on top of Claude Code. **Cla
 | **Knowledge** | `materials/`, `materials/INDEX.md` | The learner's files plus a catalogue with page/section anchors. Retrieval means reading the index, then reading the right pages |
 | **Memory** | `learning/memory.md` | Durable, evidence-backed observations about the learner, curated by the tutor |
 | **Learner artefacts** | `notes/`, `practice/` | Notebook and scratch work |
+| **Web UI** | `ui/server.mjs`, `ui/quiz.mjs`, `ui/lib/quizzes.mjs`, `ui/public/*` | Dashboard and quiz pages on 127.0.0.1. Reads `engine snapshot`, forwards answers to `engine grade/answer/record`, pushes live updates. See `guide/UI.md` |
 | **Ops** | `scripts/doctor.mjs`, `scan-materials.mjs`, `fetch-materials.mjs` | Readiness checks, material inventory, repository and preset fetching |
 
 ## The learning loop
@@ -45,9 +48,11 @@ materials  interview → profile  probe or teach → quiz/assess    due items fi
 | `/roadmap` | `outline` | `profile`, `build`, `revise`, `order`, `map` |
 | `/learn` | `study` | `status`, `explained`, `quiz`, `grade`, `assess`, `skip`, `defer`, `repair` |
 | `/recall` | `review` | `reviews`, `bank`, `quiz`, `grade`, `assess` |
-| `/quiz` | any | `bank --wrong`, `quiz` (`shuffle: false`), `grade` |
+| `/quiz` | any | `bank --wrong`; `ui/quiz.mjs new / results / review` (which call `record`) |
 | `/solve` | any | `map` (to link the problem to an objective) |
-| `/note`, `/progress` | any | `map`, `paths`, `reviews`, `bank` |
+| `/note`, `/progress` | any | `map`, `paths`, `reviews`, `bank`; `ui/server.mjs --ensure --open /` |
+
+Answers given in the browser reach the tutor through `status`: `ui_activity` (graded closed answers, cleared with `ack`) and `pending_question.status: "answered"` (written answers to grade).
 
 ## Why an engine at all?
 

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quiz · Master Everything</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f766e'/%3E%3Cpath d='M8 23V12l8-4 8 4v11M12 16.5l3 3 5-5.5' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/">
+          <span class="brand-mark" id="brand-mark"></span>
+          <span>Master Everything</span>
+        </a>
+        <a class="btn btn-ghost" href="/" id="back-link"></a>
+        <span class="live" data-live data-on="false"><span class="live-dot"></span><span>…</span></span>
+      </div>
+    </header>
+    <main id="main" class="quiz-main" tabindex="-1" aria-busy="true"></main>
+    <div class="actionbar" id="actionbar" hidden>
+      <div class="actionbar-inner">
+        <span class="progress-text" id="progress-text" aria-live="polite"></span>
+        <button class="btn btn-accent" type="submit" form="quiz-form" id="submit-btn"></button>
+      </div>
+    </div>
+    <script type="module" src="/assets/quiz.js"></script>
+  </body>
+</html>

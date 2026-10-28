@@ -1,12 +1,15 @@
 {
   "name": "master-everything",
   "version": "0.1.0",
-  "description": "A mastery-learning tutor for any subject that runs inside Claude Code — your materials, no web UI, no API key.",
+  "description": "A mastery-learning tutor for any subject that runs inside Claude Code, with a local dashboard and quiz pages — your materials, no API key.",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
+    "ui": "node ui/server.mjs",
     "doctor": "node scripts/doctor.mjs",
     "scan": "node scripts/scan-materials.mjs",
     "fetch": "node scripts/fetch-materials.mjs",

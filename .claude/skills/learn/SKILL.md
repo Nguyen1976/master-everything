@@ -9,7 +9,12 @@ description: Continue studying the current roadmap (study mode) — teach and ch
 1. `node tutor/engine.mjs status`. If `mode` is not `study`, run `mode study`. With no roadmap or profile, run `/roadmap` first.
 2. At the start of a session, read `learning/memory.md` (old misconceptions, teaching that worked) and open the `sources` of `next`, only the relevant pages or sections.
 3. Work on **exactly one objective**: `next`. The `next.action` table is in `CLAUDE.md`.
-4. End the turn either with an answer only, or with **one** question as the last action (`quiz -`, then show the card).
+4. End the turn either with an answer only, or with **one** question as the last action (`quiz -`, then show the card). The same question also appears on the dashboard (`node ui/server.mjs --ensure` prints its URL), where the learner can answer it with a click. Mention the link the first time in a session.
+
+## Answers given in the dashboard
+`status` tells you what the learner did in the browser since your last turn:
+- `ui_activity` lists questions they answered **and the engine already graded** (choice/tf/fill). Respond to each one as if they had answered in the chat (praise or correct, explain from the source), then run `node tutor/engine.mjs ack`.
+- `pending_question.status: "answered"` means they wrote a short/code answer there (`learner_answer`). Grade it now with `grade --score <0..1>`, exactly as below.
 
 ## When the message answers the open question
 - `grade --answer "<answer>"` for choice/tf/fill. For short/code, judge it against the reference (run code or redo the working if needed), then `grade --score <0..1> --learner "<quote>"`.

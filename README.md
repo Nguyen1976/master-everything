@@ -3,9 +3,9 @@
 # Master Everything
 
 **Mastery-based tutoring for any subject, from your own materials — inside Claude Code.**
-No web UI. No API key. No vector database. One prompt to set up.
+A live dashboard and quiz pages on your machine. No API key. No vector database. One prompt to set up.
 
-[Get started](#-get-started) · [How it works](#-how-it-works) · [Commands](#-commands) · [Architecture](guide/ARCHITECTURE.md) · [Agent setup](guide/AGENT_SETUP.md)
+[Get started](#-get-started) · [How it works](#-how-it-works) · [Dashboard & quizzes](#%EF%B8%8F-dashboard--quizzes) · [Commands](#-commands) · [Architecture](guide/ARCHITECTURE.md) · [Agent setup](guide/AGENT_SETUP.md)
 
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue) ![node](https://img.shields.io/badge/node-%E2%89%A522-339933) ![deps](https://img.shields.io/badge/dependencies-0-brightgreen) ![runs in](https://img.shields.io/badge/runs%20in-Claude%20Code-d97757)
 
@@ -23,14 +23,14 @@ Learning sticks when someone teaches from your actual course, checks that you ca
 - **It brings things back** on a spaced-repetition schedule and keeps a question bank of every mistake, with explanations.
 - **It remembers you**: your misconceptions, error patterns, and the explanations that worked.
 
-All of it runs in the Claude Code chat you already have:
+All of it runs in the Claude Code chat you already have, with a local web UI beside it:
 
 | | |
 |---|---|
-| Interface | Your Claude Code chat (terminal, desktop app or IDE) |
+| Interface | Your Claude Code chat to learn, plus a local dashboard and quiz pages in your browser |
 | Model | Your existing Claude Code plan (Pro works). No API key |
 | Knowledge base | Your own files plus a page-anchored index. No vector database |
-| Install | `git clone` + Node.js ≥ 22. Zero dependencies, no server |
+| Install | `git clone` + Node.js ≥ 22. Zero dependencies, nothing to host |
 | Subjects | Anything your materials cover: programming, maths, languages, medicine, law, exam prep… |
 
 ## 🚀 Get Started
@@ -80,6 +80,24 @@ Then type **`/ingest`** (catalogue your materials) and **`/roadmap`** (get inter
 5. **Spaced review.** Mastered objectives come back on a schedule (memory: 1 → 3 → 7 → 14 → 30 → 60 days); a miss resets the ladder.
 6. **It remembers you.** `learning/memory.md` keeps evidence-backed notes on your misconceptions, error patterns and the explanations that worked for you.
 
+## 🖥️ Dashboard & quizzes
+
+The tutor talks in the chat and sends you links for everything that is better seen or clicked:
+
+- **Dashboard** (`/progress`, or after any roadmap change): mastered objectives, reviews due, accuracy and streak; the question the tutor just asked, answerable with a click; what's next and how close you are to its gate; the full roadmap with a mastery bar per objective; upcoming reviews; quizzes; and recent mistakes with explanations. It updates live while you study.
+- **Quiz pages** (`/quiz`): the whole set on one page. Choice, true/false and fill-in answers are graded on submit, with the correct answer and explanation; written and code answers go to your tutor, whose score and feedback then appear on the page.
+
+![Dashboard](guide/images/dashboard.png)
+
+<details>
+<summary><b>Quiz page</b></summary>
+
+![Quiz page](guide/images/quiz.png)
+
+</details>
+
+Everything runs on `127.0.0.1` with no dependencies, and every answer goes through the same engine as the chat. See **[guide/UI.md](guide/UI.md)**.
+
 ## ⌨️ Commands
 
 | Command | What it does |
@@ -88,10 +106,10 @@ Then type **`/ingest`** (catalogue your materials) and **`/roadmap`** (get inter
 | `/roadmap` | Interview, design or edit a roadmap; add a roadmap for another subject |
 | `/learn` | Continue: teach → check → grade until the gate clears |
 | `/recall` | Spaced review of what you have mastered |
-| `/quiz [topic] [n] [difficulty]` | A practice set grounded in your materials, aimed at your weak spots |
+| `/quiz [topic] [n] [difficulty]` | A practice set grounded in your materials, aimed at your weak spots, as a quiz page |
 | `/solve [problem]` | Planned, verified, step-by-step solution |
 | `/note [topic]` | Save a note to `notes/` |
-| `/progress` | Map, weak spots, review schedule |
+| `/progress` | Open the dashboard and summarise weak spots and the review schedule |
 
 You can also just talk: *"explain that differently"*, *"that answer key is wrong"*, *"skip this question"*, *"park this topic"*, *"let's review"*.
 
@@ -114,15 +132,16 @@ Adding a preset takes two files ([how](guide/MATERIALS.md#presets)), and contrib
 CLAUDE.md                  tutor protocol: turn rules, teaching playbook, question quality, memory rules
 .claude/skills/<cmd>/      one workflow per command (ingest, roadmap, learn, recall, quiz, solve, note, progress)
 tutor/engine.mjs           deterministic policy: mastery gate, scoring, spaced review, question bank
+ui/                        local web UI: dashboard + quiz pages (node:http, no dependencies)
 materials/  + INDEX.md     your sources and their page-anchored catalogue
 learning/                  state.json (engine data) · memory.md (what the tutor knows about you)
 notes/ · practice/         your notebook and scratch work
 scripts/                   doctor · scan-materials · fetch-materials
-guide/                     AGENT_SETUP · ARCHITECTURE · ENGINE · MATERIALS
+guide/                     AGENT_SETUP · ARCHITECTURE · ENGINE · MATERIALS · UI
 presets/                   optional material bundles
 ```
 
-Claude Code is the agent loop and the UI. The engine holds the one decision an LLM should not make on its own: **whether you have learned it**. See **[guide/ARCHITECTURE.md](guide/ARCHITECTURE.md)** for the design, and **[guide/ENGINE.md](guide/ENGINE.md)** for the engine CLI and data model.
+Claude Code is the agent loop; the browser shows progress and hosts practice. The engine holds the one decision an LLM should not make on its own: **whether you have learned it**. See **[guide/ARCHITECTURE.md](guide/ARCHITECTURE.md)** for the design, and **[guide/ENGINE.md](guide/ENGINE.md)** for the engine CLI and data model.
 
 <details>
 <summary><b>Engine at a glance</b></summary>
@@ -139,7 +158,7 @@ npm test                          # engine test suite (node:test)
 <details>
 <summary><b>Privacy & data</b></summary>
 
-All learning data (`learning/state.json`, `learning/memory.md`, `notes/`, `practice/`, `materials/`) lives in your folder and is git-ignored. What leaves your machine is only what any Claude Code session sends: the conversation and the files the tutor reads to teach you.
+All learning data (`learning/state.json`, `learning/quizzes/`, `learning/memory.md`, `notes/`, `practice/`, `materials/`) lives in your folder and is git-ignored. What leaves your machine is only what any Claude Code session sends: the conversation and the files the tutor reads to teach you.
 
 </details>
 

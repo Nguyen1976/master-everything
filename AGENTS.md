@@ -9,7 +9,8 @@ This file is for **developing** Master Everything. When a session in this folder
 | `CLAUDE.md` | Tutor protocol, always loaded | Turn semantics, teaching playbook, question-quality or memory rules change |
 | `.claude/skills/<name>/SKILL.md` | One workflow per learner command | A command's workflow changes, or you add a command |
 | `tutor/engine.mjs` | Policy engine CLI (no dependencies) | Gate, scoring, scheduling, state shape, card rendering |
-| `tutor/test/engine.test.mjs` | Engine tests (`npm test`) | Every engine change |
+| `tutor/test/*.test.mjs` | Engine and UI server tests (`npm test`) | Every engine or UI change |
+| `ui/` | Local web UI: `server.mjs` (node:http, SSE), `quiz.mjs` (CLI), `lib/quizzes.mjs`, `public/` (HTML/CSS/JS, no build) | Dashboard or quiz behaviour, design tokens (`public/styles.css`), UI strings (`public/common.js`) |
 | `scripts/` | `doctor`, `scan-materials`, `fetch-materials` | Setup, inventory or fetching behaviour |
 | `presets/<name>/` | `preset.json` + optional `INDEX.md` | Adding or updating material bundles |
 | `guide/` | User and agent documentation | Behaviour visible to users changes |
@@ -33,5 +34,6 @@ npm run doctor    # readiness checks
 
 - Changing a policy constant: update `guide/ENGINE.md` (constants table), `guide/ARCHITECTURE.md` and README "How it works" if user-visible, then the tests.
 - Adding a command: create `.claude/skills/<name>/SKILL.md` (frontmatter `name`, `description`, optional `argument-hint`), list it in `CLAUDE.md`, the README command table and the `doctor` skill list.
-- Adding a language: add an entry to `STRINGS` in `tutor/engine.mjs` and extend the localisation test.
+- Adding a language: add an entry to `STRINGS` in `tutor/engine.mjs` and in `ui/public/common.js`, and extend the localisation test.
+- UI rules: the browser never decides grades or mastery (it calls the engine), answer keys never reach it before grading, writes require the `x-master-everything` header, and every state is shown with an icon and a label, not colour alone.
 - Keep prompts imperative and specific; when a rule is adapted from third-party work, record it in `THIRD_PARTY_NOTICES.md`.

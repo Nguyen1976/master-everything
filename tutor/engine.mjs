@@ -322,6 +322,112 @@ function normalizeTf(s) {
   return null;
 }
 
+// --- Grading (shared by the chat, the dashboard and quiz pages) -------------
+
+// Validate a question and turn author input into what the learner sees:
+// labelled options (shuffled unless `shuffle: false`, so the correct answer's
+// position carries no signal) and the matching answer key.
+export function normalizeQuestion(q) {
+  if (!QUESTION_TYPES.includes(q.type)) return { error: `type must be one of ${QUESTION_TYPES.join("|")}` };
+  if (!q.question || !q.explanation) return { error: "question and explanation are required" };
+  if (q.type === "choice") {
+    if (!Array.isArray(q.options) || q.options.length < 3 || q.options.length > 4) return { error: "choice needs 3-4 options (array of strings)" };
+    if (!Number.isInteger(q.answer_index) || !q.options[q.answer_index]) return { error: "choice needs answer_index (0-based)" };
+    const order = q.options.map((_, i) => i);
+    if (q.shuffle !== false) {
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+    }
+    const options = order.map((orig, i) => ({ label: "ABCD"[i], body: String(q.options[orig]).replace(/^[A-D][.)]\s*/, "") }));
+    return { options, expected: options[order.indexOf(q.answer_index)].label };
+  }
+  if (q.type === "tf") {
+    const expected = normalizeTf(String(q.expected ?? ""));
+    return expected ? { options: null, expected } : { error: "tf needs expected: true|false" };
+  }
+  return q.expected ? { options: null, expected: q.expected } : { error: "expected answer is required" };
+}
+
+// Score a closed answer (choice/tf/fill); returns null for open types, which
+// need a judgement (`--score`) from the tutor.
+export function autoScore(q, answer) {
+  const ans = String(answer).trim();
+  if (q.type === "choice") return ans.toUpperCase().replace(/[^A-D]/g, "").slice(0, 1) === q.expected ? 1 : 0;
+  if (q.type === "tf") return normalizeTf(ans) === q.expected ? 1 : 0;
+  if (q.type === "fill") {
+    const norm = (s) => String(s).trim().toLowerCase().replace(/[`'"]/g, "");
+    return [q.expected, ...(q.accept || [])].map(norm).includes(norm(ans)) ? 1 : 0;
+  }
+  return null;
+}
+
+// Store an attempt and apply it to the gate (or to the review schedule when the
+// objective is already mastered). Returns the learner-relevant outcome.
+function applyAttempt(state, kp, fields) {
+  state.counters.attempt += 1;
+  const review = kp ? isMastered(state, kp) : false;
+  const attempt = { id: `a${state.counters.attempt}`, ...fields, review, at: new Date().toISOString() };
+  state.attempts.push(attempt);
+  const result = { ok: true, attempt: attempt.id, correct: attempt.score >= 1, score: attempt.score, expected: attempt.expected, explanation: attempt.explanation };
+  if (!kp) {
+    result.free_practice = true;
+  } else if (review) {
+    const r = scheduleReview(state, kp, attempt.score >= 0.75);
+    result.review = { next_due: new Date(r.due_at).toISOString().slice(0, 10), step: r.step };
+  } else {
+    result.newly_mastered = refreshGate(state, kp);
+    result.mastered = isMastered(state, kp);
+    result.mastery = +masteryLevel(state, kp).toFixed(2);
+    result.gate = QUANTITATIVE_GATE[kp.type] ?? "qualitative";
+    result.attempts_on_objective = gateAttempts(state, kp.id).length;
+  }
+  const p = state.paths[state.current_path];
+  if (p) result.next = nextObjective(state, p)?.id ?? null;
+  return result;
+}
+
+// The open question as the learner may see it: never the answer key.
+function publicPending(state) {
+  const p = state.pending;
+  if (!p) return null;
+  return {
+    id: p.id,
+    kp: p.kp,
+    kp_name: p.kp_name,
+    type: p.type,
+    question: p.question,
+    options: p.options,
+    difficulty: p.difficulty,
+    asked_at: new Date(p.asked_at).toISOString(),
+    status: p.learner_answer != null ? "answered" : "open",
+    learner_answer: p.learner_answer ?? null,
+    via: p.via ?? null,
+  };
+}
+
+// Results the learner produced in the dashboard that the tutor has not
+// responded to yet (cleared with `ack`).
+function uiActivity(state) {
+  return state.attempts
+    .filter((a) => a.via === "ui" && !a.acked)
+    .map(({ id, kp, question, learner_answer, expected, score }) => ({ id, kp, question, learner_answer, expected, score }));
+}
+
+function activeDays(state) {
+  const days = new Set(state.attempts.map((a) => a.at.slice(0, 10)));
+  let streak = 0;
+  const day = new Date();
+  // A streak survives until the end of the day after the last study day.
+  if (!days.has(day.toISOString().slice(0, 10))) day.setUTCDate(day.getUTCDate() - 1);
+  while (days.has(day.toISOString().slice(0, 10))) {
+    streak += 1;
+    day.setUTCDate(day.getUTCDate() - 1);
+  }
+  return { streak, total: days.size };
+}
+
 // --- Commands ---------------------------------------------------------------
 
 function validateModules(modules) {
@@ -355,8 +461,12 @@ const commands = {
   quiz - [--replace]             register a question card (stdin {kp|topic,type,question,options?,answer_index?,expected,accept?,explanation,difficulty,shuffle?})
                                  types: choice | tf | fill | short | code; kp counts toward the gate, topic is free practice
   show                           re-print the pending question card
-  grade [--answer X] [--score 0..1] [--hints] [--learner "text"]
+  grade [--answer X] [--score 0..1] [--hints] [--learner "text"] [--via ui]
                                  grade the pending question
+  answer --text "..." [--via ui] store the learner's answer to the open question for the tutor to grade
+  ack                            mark dashboard results (status.ui_activity) as seen by the tutor
+  record -                       record a graded attempt outside the open slot (quiz sets; stdin JSON)
+  snapshot                       everything the dashboard renders (JSON)
   assess <kpId> pass|fail [--hints] -   qualitative gate for concept/design (stdin {"feedback": "...", "learner_quote": "..."})
   skip                           drop the pending question (no credit)
   defer <kpId> | undefer <kpId>  set an objective aside without mastering it
@@ -375,9 +485,8 @@ const commands = {
       profile: state.profile,
       path: p ? { id: p.id, name: p.name, goal: p.goal } : null,
       paths: Object.keys(state.paths),
-      pending_question: state.pending
-        ? { id: state.pending.id, kp: state.pending.kp, type: state.pending.type, asked_at: new Date(state.pending.asked_at).toISOString() }
-        : null,
+      pending_question: publicPending(state),
+      ui_activity: uiActivity(state),
       due_reviews: dueReviews(state),
     };
     if (p) {
@@ -513,29 +622,9 @@ const commands = {
     // never moves a gate; it still lands in the question bank.
     if (!q.kp && !q.topic) fail("quiz needs kp (objective id) or topic (free practice)");
     const kp = q.kp ? findKp(state, q.kp).kp : null;
-    if (!QUESTION_TYPES.includes(q.type)) fail(`type must be one of ${QUESTION_TYPES.join("|")}`);
-    if (!q.question || !q.explanation) fail("question and explanation are required");
     if (kp && state.mode === "review" && !isMastered(state, kp)) fail(`review mode only re-tests mastered objectives; ${kp.id} is not mastered`);
-    let options = null;
-    let expected = q.expected;
-    if (q.type === "choice") {
-      if (!Array.isArray(q.options) || q.options.length < 3 || q.options.length > 4) fail("choice needs 3-4 options (array of strings)");
-      if (!Number.isInteger(q.answer_index) || !q.options[q.answer_index]) fail("choice needs answer_index (0-based)");
-      // Shuffle so the correct answer's position carries no signal — unless the
-      // learner already saw these labels (a grouped /quiz set recorded afterwards).
-      const order = q.options.map((_, i) => i);
-      if (q.shuffle !== false) {
-        for (let i = order.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [order[i], order[j]] = [order[j], order[i]];
-        }
-      }
-      options = order.map((orig, i) => ({ label: "ABCD"[i], body: String(q.options[orig]).replace(/^[A-D][.)]\s*/, "") }));
-      expected = options[order.indexOf(q.answer_index)].label;
-    } else if (q.type === "tf") {
-      expected = normalizeTf(String(q.expected));
-      if (!expected) fail("tf needs expected: true|false");
-    } else if (!expected) fail("expected answer is required");
+    const { options, expected, error } = normalizeQuestion(q);
+    if (error) fail(error);
     state.counters.question += 1;
     state.pending = {
       id: `q${state.counters.question}`,
@@ -572,19 +661,13 @@ const commands = {
       score = Number(flags.score);
       if (!(score >= 0 && score <= 1)) fail("--score must be between 0 and 1");
     } else if (flags.answer !== undefined && flags.answer !== true) {
-      const ans = String(flags.answer).trim();
-      if (q.type === "choice") score = ans.toUpperCase().replace(/[^A-D]/g, "").slice(0, 1) === q.expected ? 1 : 0;
-      else if (q.type === "tf") score = normalizeTf(ans) === q.expected ? 1 : 0;
-      else if (q.type === "fill") {
-        const norm = (s) => String(s).trim().toLowerCase().replace(/[`'"]/g, "");
-        score = [q.expected, ...q.accept].map(norm).includes(norm(ans)) ? 1 : 0;
-      } else fail(`${q.type} questions need --score (judge the answer against the reference)`);
+      score = autoScore(q, flags.answer);
+      if (score === null) fail(`${q.type} questions need --score (judge the answer against the reference)`);
     } else fail("pass --answer <learner answer> (choice/tf/fill) or --score 0..1");
 
     const kp = q.kp ? findKp(state, q.kp).kp : null;
-    state.counters.attempt += 1;
-    const attempt = {
-      id: `a${state.counters.attempt}`,
+    const via = flags.via || q.via || "chat";
+    const result = applyAttempt(state, kp, {
       question_id: q.id,
       kp: q.kp,
       topic: q.topic,
@@ -594,32 +677,149 @@ const commands = {
       expected: q.expected,
       explanation: q.explanation,
       difficulty: q.difficulty,
-      learner_answer: flags.learner || flags.answer || null,
+      learner_answer: flags.learner || flags.answer || q.learner_answer || null,
       score,
       hints: Boolean(flags.hints),
-      review: q.review,
-      at: new Date().toISOString(),
-    };
-    state.attempts.push(attempt);
+      via,
+      // The tutor saw the answer only if it graded it itself.
+      acked: via !== "ui" || flags.score !== undefined,
+    });
     state.pending = null;
-
-    const result = { ok: true, attempt: attempt.id, correct: score >= 1, score, expected: q.expected, explanation: q.explanation };
-    if (!kp) {
-      result.free_practice = true;
-    } else if (q.review) {
-      const r = scheduleReview(state, kp, score >= 0.75);
-      result.review = { next_due: new Date(r.due_at).toISOString().slice(0, 10), step: r.step };
-    } else {
-      result.newly_mastered = refreshGate(state, kp);
-      result.mastered = isMastered(state, kp);
-      result.mastery = +masteryLevel(state, kp).toFixed(2);
-      result.gate = QUANTITATIVE_GATE[kp.type] ?? "qualitative";
-      result.attempts_on_objective = gateAttempts(state, kp.id).length;
-    }
     save(state);
-    const p = state.paths[state.current_path];
-    if (p) result.next = nextObjective(state, p)?.id ?? null;
     out(result);
+  },
+
+  // Store the learner's answer to the open question without grading it — used
+  // by the dashboard for open types (short/code) the tutor must judge.
+  answer(args) {
+    const { flags } = parseFlags(args);
+    if (typeof flags.text !== "string" || !flags.text.trim()) fail('answer needs --text "<learner answer>"');
+    const state = load();
+    if (!state.pending) fail("no pending question");
+    state.pending.learner_answer = flags.text;
+    state.pending.answered_at = Date.now();
+    state.pending.via = flags.via || "ui";
+    save(state);
+    out({ ok: true, question: state.pending.id, status: "answered", note: "the tutor grades it in the chat" });
+  },
+
+  // The tutor has responded to everything the learner did in the dashboard.
+  ack() {
+    const state = load();
+    let n = 0;
+    for (const a of state.attempts) if (a.via === "ui" && !a.acked) (a.acked = true), n++;
+    save(state);
+    out({ ok: true, acknowledged: n });
+  },
+
+  // Record a graded attempt directly, outside the single open-question slot —
+  // used for quiz sets. Closed types are graded here; open types need `score`.
+  record() {
+    const body = readStdinJson();
+    const state = load();
+    if (!body.kp && !body.topic) fail("record needs kp (objective id) or topic (free practice)");
+    const kp = body.kp ? findKp(state, body.kp).kp : null;
+    if (!QUESTION_TYPES.includes(body.type)) fail(`type must be one of ${QUESTION_TYPES.join("|")}`);
+    if (!body.expected) fail("record needs the normalized answer key in expected");
+    let score = body.score;
+    if (score === undefined || score === null) {
+      if (body.learner_answer == null) fail("record needs learner_answer or score");
+      score = autoScore(body, body.learner_answer);
+      if (score === null) fail(`${body.type} answers need a score from the tutor`);
+    }
+    score = Number(score);
+    if (!(score >= 0 && score <= 1)) fail("score must be between 0 and 1");
+    const result = applyAttempt(state, kp, {
+      kp: body.kp || null,
+      topic: body.topic || null,
+      type: body.type,
+      question: body.question,
+      options: body.options || null,
+      expected: body.expected,
+      explanation: body.explanation || "",
+      difficulty: body.difficulty || "medium",
+      learner_answer: body.learner_answer ?? null,
+      score,
+      hints: Boolean(body.hints),
+      via: body.via || "quiz",
+      quiz: body.quiz || null,
+      acked: true,
+    });
+    save(state);
+    out(result);
+  },
+
+  // Everything the dashboard renders, computed by the policy (never re-derived
+  // in the browser).
+  snapshot() {
+    const state = load();
+    const now = Date.now();
+    const due = new Set(dueReviews(state, now).map((d) => d.id));
+    const paths = Object.values(state.paths).map((p) => {
+      const next = nextObjective(state, p);
+      const modules = p.modules.map((m) => ({
+        id: m.id,
+        name: m.name,
+        objective: m.objective,
+        kps: m.kps.map((kp) => ({
+          id: kp.id,
+          name: kp.name,
+          type: kp.type,
+          sources: kp.sources || [],
+          status: objectiveStatus(state, kp),
+          stage: learningStage(state, kp),
+          mastery: +masteryLevel(state, kp).toFixed(2),
+          gate: QUALITATIVE_TYPES.has(kp.type) ? "explain" : QUANTITATIVE_GATE[kp.type],
+          attempts: gateAttempts(state, kp.id).length,
+          review: state.reviews[kp.id] ? { due_at: new Date(state.reviews[kp.id].due_at).toISOString(), step: state.reviews[kp.id].step, due: due.has(kp.id) } : null,
+          current: next?.id === kp.id,
+        })),
+      }));
+      const kps = modules.flatMap((m) => m.kps);
+      return {
+        id: p.id,
+        name: p.name,
+        goal: p.goal,
+        current: p.id === state.current_path,
+        next,
+        modules,
+        summary: {
+          total: kps.length,
+          mastered: kps.filter((k) => k.status === "mastered").length,
+          learning: kps.filter((k) => k.status === "learning").length,
+          deferred: kps.filter((k) => k.status === "deferred").length,
+        },
+      };
+    });
+    const scored = state.attempts.filter((a) => !a.voided);
+    const recent = scored.slice(-20);
+    const upcoming = Object.entries(state.reviews)
+      .filter(([, r]) => r.due_at > now && r.due_at <= now + 14 * DAY)
+      .sort(([, a], [, b]) => a.due_at - b.due_at)
+      .map(([id, r]) => ({ id, name: findKp(state, id).kp.name, due_at: new Date(r.due_at).toISOString() }));
+    out({
+      ok: true,
+      generated_at: new Date(now).toISOString(),
+      language: state.profile.language || "en",
+      profile: state.profile,
+      mode: state.mode,
+      intake_needed: Object.keys(state.profile || {}).length === 0,
+      current_path: state.current_path,
+      paths,
+      pending: publicPending(state),
+      due_reviews: dueReviews(state, now),
+      upcoming_reviews: upcoming,
+      stats: {
+        attempts: scored.length,
+        recent_accuracy: recent.length ? +(recent.reduce((s, a) => s + a.score, 0) / recent.length).toFixed(2) : null,
+        days: activeDays(state),
+      },
+      mistakes: scored
+        .filter((a) => a.score < 1)
+        .slice(-12)
+        .reverse()
+        .map(({ id, kp, topic, type, question, options, expected, learner_answer, explanation, at }) => ({ id, kp, topic, type, question, options, expected, learner_answer, explanation, at })),
+    });
   },
 
   assess(args) {

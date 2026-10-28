@@ -47,6 +47,13 @@ check("engine responds", true, () => {
   return out.path ? `roadmap "${out.path.name}", mode ${out.mode}` : "no roadmap yet (run /roadmap)";
 });
 
+check("web UI", false, () => {
+  const files = ["ui/server.mjs", "ui/quiz.mjs", "ui/lib/quizzes.mjs", "ui/public/index.html", "ui/public/quiz.html", "ui/public/dashboard.js", "ui/public/quiz.js", "ui/public/common.js", "ui/public/styles.css"];
+  const missing = files.filter((f) => !exists(f));
+  if (missing.length) throw new Error(`missing: ${missing.join(", ")}`);
+  return "dashboard and quiz pages (npm run ui)";
+});
+
 check("learner memory", true, () => {
   const memory = path.join(ROOT, "learning/memory.md");
   if (!fs.existsSync(memory)) {

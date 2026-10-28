@@ -15,7 +15,9 @@
       "Write(notes/**)",
       "Edit(notes/**)",
       "Write(practice/**)",
-      "Edit(practice/**)"
+      "Edit(practice/**)",
+      "Bash(node ui/server.mjs:*)",
+      "Bash(node ui/quiz.mjs:*)"
     ]
   }
 }

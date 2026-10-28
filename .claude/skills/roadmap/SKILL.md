@@ -58,7 +58,7 @@ node tutor/engine.mjs map
 ```
 
 ## 4. Walk through it and revise
-Show the map (`map`), explain **what each module is for and why they come in this order**, and ask what they want changed. Change it on the spot:
+Open the dashboard so they can see the whole roadmap (`node ui/server.mjs --ensure --open /`, then share the printed URL), show the map in the chat as well (`map`), explain **what each module is for and why they come in this order**, and ask what they want changed. Change it on the spot:
 - Edit one module: `revise <moduleId> -` (the new module JSON). Rewriting an objective **resets its progress**, so say so first. Mastered objectives cannot be rewritten; add a new objective rather than erase earned work.
 - Reorder: `order m2,m1,m3` (every module id exactly once).
 - A change outside a module's `objective` → say so plainly and offer a redesign (`build --replace`).
