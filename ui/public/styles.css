@@ -271,7 +271,7 @@ main {
 }
 .grid-main {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
   gap: var(--space-5);
   align-items: start;
 }
@@ -594,83 +594,295 @@ label.field {
   padding-left: 1.25rem;
 }
 
-/* --- Roadmap ------------------------------------------------------------ */
+/* --- Roadmap: a transit line ---------------------------------------------
+   One continuous vertical track. Stations (modules) are numbered nodes; stops
+   (objectives) are small dots. The track behind a stop is solid once that stop
+   is mastered and dashed while it is ahead of you. */
 
-.module {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  overflow: hidden;
+.roadmap {
+  --track-x: 20px; /* centre of the line */
+  --track-w: 3px;
+  gap: var(--space-3);
 }
-.module > summary {
+.route-key {
   list-style: none;
-  cursor: pointer;
-  padding: var(--space-4) var(--space-5);
-  display: grid;
-  grid-template-columns: 1fr auto;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2) var(--space-4);
-  align-items: center;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
 }
-.module > summary::-webkit-details-marker {
+.route-key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.key-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--surface);
+}
+.key-dot.mastered {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.key-dot.current {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.route-summary {
+  font-size: 0.9375rem;
+}
+
+.route,
+.stops {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.route {
+  position: relative;
+}
+.stage {
+  position: relative;
+}
+/* The line itself: one dashed segment per station, overlaid per stop below. */
+.stage::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--track-x) - var(--track-w) / 2);
+  top: 0;
+  bottom: 0;
+  border-left: var(--track-w) dashed var(--track);
+}
+.stage:first-child::before {
+  top: 20px;
+}
+.stage:last-child::before {
+  bottom: auto;
+  height: 20px;
+}
+.stage:last-child:has(details[open])::before {
+  height: auto;
+  bottom: 32px;
+}
+.stage[data-state="done"]::before {
+  border-left-style: solid;
+  border-color: var(--primary);
+}
+
+.stage-head {
+  list-style: none;
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-2) var(--space-3) 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-height: 56px;
+}
+.stage-head::-webkit-details-marker {
   display: none;
 }
-.module > summary:hover {
-  background: var(--surface-2);
+.stage-head:hover .stage-name {
+  color: var(--primary);
 }
-.module-meta {
-  font-size: 0.875rem;
+.stage-node {
+  position: relative;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  background: var(--surface);
+  border: var(--track-w) solid var(--border);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
-.module-bar {
-  grid-column: 1 / -1;
+.stage-node .icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 3;
 }
-.kp-list {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 var(--space-2);
-  border-top: 1px solid var(--border);
+.stage[data-state="done"] .stage-node {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
 }
-.kp {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(90px, 160px);
-  gap: var(--space-2) var(--space-4);
-  align-items: center;
-  padding: var(--space-3) var(--space-5);
-}
-.kp + .kp {
-  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-}
-.kp.current {
-  background: color-mix(in srgb, var(--primary-soft) 55%, transparent);
-}
-.kp-name {
-  font-weight: 600;
-}
-.kp-sub {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: 2px;
-}
-.status-icon.mastered {
-  color: var(--success);
-}
-.status-icon.learning {
+.stage[data-state="active"] .stage-node,
+.stage[data-state="started"] .stage-node {
+  border-color: var(--primary);
   color: var(--primary);
 }
-.status-icon.new {
+.stage-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.stage-name {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1rem;
+  transition: color 150ms var(--ease);
+}
+.stage-objective {
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+.stage[data-state="upcoming"] .stage-name {
   color: var(--text-muted);
 }
-.status-icon.deferred {
-  color: var(--warning);
+.stage-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
 }
-@media (max-width: 560px) {
-  .kp {
-    grid-template-columns: auto minmax(0, 1fr);
+.stage[data-state="done"] .stage-count {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+details[open] > .stage-head .stage-objective {
+  color: var(--text);
+}
+
+.stops {
+  padding: 0 0 var(--space-3);
+}
+.stop {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
+  min-height: 52px;
+}
+/* Solid track behind every stop already mastered. */
+.stop[data-status="mastered"]::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--track-x) - var(--track-w) / 2);
+  top: -1px;
+  bottom: -1px;
+  border-left: var(--track-w) solid var(--primary);
+}
+.stop-dot {
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2.5px solid var(--border);
+}
+.stop[data-status="mastered"] .stop-dot {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.stop[data-status="learning"] .stop-dot {
+  border-color: var(--primary);
+  background: linear-gradient(90deg, var(--primary) 50%, var(--surface) 50%);
+}
+.stop[data-status="deferred"] .stop-dot {
+  border-style: dashed;
+  border-color: var(--warning);
+}
+.stop[data-status="current"] .stop-dot {
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.stop[data-status="current"] {
+  background: linear-gradient(90deg, transparent 32px, color-mix(in srgb, var(--accent) 7%, transparent) 32px);
+  border-radius: var(--radius-sm);
+}
+.stop-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.stop-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.stop[data-status="new"] .stop-name {
+  font-weight: 400;
+}
+.here {
+  display: inline-block;
+  margin-left: var(--space-1);
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 20px;
+  vertical-align: 1px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.stop-meta {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.stop-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--warning);
+  font-weight: 600;
+}
+.stop-flag .icon {
+  width: 13px;
+  height: 13px;
+}
+.stop-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+.stop-value.done {
+  color: var(--primary);
+  display: inline-flex;
+}
+.stop-value.done .icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 3;
+}
+.stop-gate {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .stop[data-status="current"] .stop-dot {
+    animation: here 2.4s var(--ease) infinite;
   }
-  .kp .meter-wrap {
-    grid-column: 2;
+  @keyframes here {
+    0%,
+    100% {
+      box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 20%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent) 6%, transparent);
+    }
   }
 }
 
@@ -941,5 +1153,35 @@ h1,
   .kpi {
     grid-template-columns: 1fr;
     padding: var(--space-4);
+  }
+}
+
+/* KPI cards keep the icon beside the number (the single-column card rule
+   above would otherwise stack them). */
+.card.kpi {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+@media (max-width: 560px) {
+  .card.kpi {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* On one column: the open question, then what's next, then the map, then the rest. */
+@media (max-width: 900px) {
+  .grid-main {
+    display: flex;
+    flex-direction: column;
+  }
+  .grid-main > .stack {
+    display: contents;
+  }
+  #pending {
+    order: -3;
+  }
+  .next-card {
+    order: -2;
+  }
+  .roadmap {
+    order: -1;
   }
 }

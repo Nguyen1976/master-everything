@@ -14,8 +14,8 @@ You rarely start it yourself: the tutor runs it and sends you links. The server 
 ### Dashboard — `/`
 - **Progress**: objectives mastered, reviews due, recent accuracy, study streak.
 - **Open question**: the question the tutor just asked in the chat. Answer it with a click; multiple-choice, true/false and fill-in answers are graded instantly, written answers go to the tutor.
-- **Up next**: the objective the engine has chosen, what kind of step it is (quick check, new lesson, practice, explain), how close you are to its gate, and its sources.
-- **Roadmap**: every module and objective, with status, a mastery bar showing the gate marker (90% for facts and procedures; explanation-based for concepts), current position and review dates. Tabs switch between roadmaps.
+- **Up next**: the objective the engine has chosen, what kind of step it is (quick check, new lesson, practice, explain), how close you are to its gate (90% for facts and procedures; an explanation for concepts), and its sources.
+- **Roadmap**: drawn as a transit line. Each module is a numbered station and each objective a stop; the track you have covered is solid and the rest dashed. The current stop is marked "You are here", mastered stops show a tick, and stops in progress show their score against the gate. The station you are on is open; click any other to expand it. Tabs switch between roadmaps.
 - **Reviews**: what is due now and what comes back in the next two weeks.
 - **Quizzes**: every practice set with its score and anything awaiting review.
 - **Mistakes to revisit**: recent wrong answers with the correct answer and the explanation.

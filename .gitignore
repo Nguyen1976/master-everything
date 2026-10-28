@@ -16,3 +16,6 @@ materials/*
 node_modules/
 .DS_Store
 .claude/settings.local.json
+
+# Diagram sources (only the exported PNGs are published)
+guide/diagrams/

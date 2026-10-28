@@ -2,22 +2,7 @@
 
 Master Everything adds almost no infrastructure of its own on top of Claude Code. **Claude Code is the agent loop and the conversation**, a **small local web server** gives the learner a live dashboard and quiz pages, the **filesystem is the knowledge base**, and a **single-file, dependency-free engine** keeps the one thing an LLM should not be trusted with: deciding when something has been learned.
 
-```
-   Learner ⇄ Claude Code session            Learner ⇄ Browser (dashboard, quizzes)
-                 │                                                │
-   ┌─────────────┼────────────────────┐               ui/server.mjs (127.0.0.1)
-   │             │                    │                           │
- CLAUDE.md   .claude/skills/*   Read / Bash tools                 │
- (protocol)  (workflows)              │                           │
-   └──────┬──────┘                    ▼                           │
-          │                    materials/ + INDEX.md              │
-          ▼                    (the learner's sources)            │
-   tutor/engine.mjs  ◄────────────────────────────────────────────┘
-   (deterministic policy: gate, scoring, reviews, question bank)
-          │
-          ▼
-   learning/state.json · quizzes/ · memory.md · notes/ · practice/
-```
+![How the pieces fit together](images/architecture.png)
 
 ## Layers
 
@@ -33,6 +18,8 @@ Master Everything adds almost no infrastructure of its own on top of Claude Code
 | **Ops** | `scripts/doctor.mjs`, `scan-materials.mjs`, `fetch-materials.mjs` | Readiness checks, material inventory, repository and preset fetching |
 
 ## The learning loop
+
+![The learning loop](images/learning-loop.png)
 
 ```
 /ingest ─► /roadmap ─────────► /learn ───────────────────────► /recall

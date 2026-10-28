@@ -11,7 +11,6 @@ let data = null;
 let selected = null; // roadmap id shown; defaults to the engine's current roadmap
 const openModules = new Set();
 
-const STATUS_ICON = { mastered: "check", learning: "dot", new: "circle", deferred: "pause" };
 
 function kpiCard(iconName, value, label, accent = false, i = 0) {
   return `<section class="card kpi reveal" style="--i:${i}">
@@ -34,18 +33,17 @@ function renderKpis(path) {
 function renderNext(path) {
   const n = path.next;
   if (!n) {
-    return `<section class="card reveal"><div class="card-title">${icon("check")}<h2>${esc(t.upNext)}</h2></div><p>${esc(t.allDone)}</p></section>`;
+    return `<section class="card reveal next-card"><div class="card-title">${icon("check")}<h2>${esc(t.upNext)}</h2></div><p>${esc(t.allDone)}</p></section>`;
   }
   const qualitative = typeof n.gate !== "number";
-  return `<section class="card reveal" aria-labelledby="next-title">
+  return `<section class="card reveal next-card" aria-labelledby="next-title">
     <div class="card-head">
       <div class="card-title">${icon("arrowRight")}<h2 id="next-title">${esc(t.upNext)}</h2></div>
       <span class="chip primary">${esc(t.action[n.action] || n.action)}</span>
     </div>
-    <div style="display:grid;gap:var(--space-2)">
-      <span class="muted">${esc(n.module)}</span>
+    <div style="display:grid;gap:2px">
+      <span class="muted" style="font-size:.875rem">${esc(n.module)}</span>
       <h3 style="font-size:1.25rem">${esc(n.name)}</h3>
-      <p class="muted">${esc(n.module_objective)}</p>
     </div>
     <div style="display:grid;gap:var(--space-2)">
       <div style="display:flex;justify-content:space-between;font-size:.875rem" class="muted">
@@ -102,40 +100,72 @@ function renderPending() {
   </section>`;
 }
 
+// The roadmap as a transit line: each module is a station, each objective a
+// stop. Travelled track is solid, the rest dashed; the current stop is marked
+// with aria-current and a "you are here" label, never by colour alone.
+function stageState(m) {
+  if (m.kps.every((k) => k.status === "mastered")) return "done";
+  if (m.kps.some((k) => k.current)) return "active";
+  return m.kps.some((k) => k.status !== "new") ? "started" : "upcoming";
+}
+
 function renderRoadmap(path) {
-  return `<section class="stack" aria-labelledby="roadmap-title">
-    <div class="card-head"><div class="card-title">${icon("list")}<h2 id="roadmap-title">${esc(t.roadmap)}</h2></div></div>
-    ${path.modules
-      .map((m, i) => {
-        const done = m.kps.filter((k) => k.status === "mastered").length;
-        const hasCurrent = m.kps.some((k) => k.current);
-        const open = openModules.has(m.id) || (openModules.size === 0 && hasCurrent);
-        return `<details class="module reveal" style="--i:${i}" data-module="${esc(m.id)}" ${open ? "open" : ""}>
-          <summary>
-            <div style="display:grid;gap:2px;min-width:0"><h3>${esc(m.name)}</h3><span class="muted" style="font-size:.9375rem">${esc(m.objective)}</span></div>
-            <span class="module-meta">${done}/${m.kps.length}</span>
-            <div class="module-bar">${meter(done / m.kps.length, null, { label: `${done}/${m.kps.length}` })}</div>
-          </summary>
-          <ul class="kp-list">${m.kps.map(kpRow).join("")}</ul>
-        </details>`;
-      })
-      .join("")}
+  return `<section class="card roadmap" aria-labelledby="roadmap-title">
+    <div class="card-head">
+      <div class="card-title">${icon("list")}<h2 id="roadmap-title">${esc(t.roadmap)}</h2></div>
+      <ul class="route-key" aria-label="${esc(t.legend)}">
+        <li><span class="key-dot mastered"></span>${esc(t.status.mastered)}</li>
+        <li><span class="key-dot current"></span>${esc(t.current)}</li>
+        <li><span class="key-dot new"></span>${esc(t.status.new)}</li>
+      </ul>
+    </div>
+    <p class="muted route-summary">${esc(t.routeSummary(path.summary.mastered, path.summary.total))}</p>
+    <ol class="route">${path.modules.map(stageMarkup).join("")}</ol>
   </section>`;
 }
 
-function kpRow(k) {
-  const qualitative = typeof k.gate !== "number";
-  const chips = [`<span class="chip">${esc(t.type[k.type] || k.type)}</span>`];
-  if (k.current) chips.push(`<span class="chip primary">${icon("arrowRight")}${esc(t.current)}</span>`);
-  if (k.review?.due) chips.push(`<span class="chip warning">${icon("rotate")}${esc(t.reviewDue)}</span>`);
-  else if (k.review) chips.push(`<span class="chip">${icon("clock")}${esc(t.reviewOn(formatDate(k.review.due_at)))}</span>`);
-  const value = k.status === "mastered" ? 1 : k.mastery;
-  return `<li class="kp ${k.current ? "current" : ""}">
-    <span class="status-icon ${k.status}" title="${esc(t.status[k.status])}">${icon(STATUS_ICON[k.status])}<span class="sr-only">${esc(t.status[k.status])}</span></span>
-    <div style="min-width:0"><div class="kp-name">${esc(k.name)}</div><div class="kp-sub">${chips.join("")}</div></div>
-    <div class="meter-wrap">${meter(value, qualitative ? null : k.gate, { label: `${t.status[k.status]} ${Math.round(value * 100)}%` })}</div>
+function stageMarkup(m, i) {
+  const state = stageState(m);
+  const done = m.kps.filter((k) => k.status === "mastered").length;
+  const open = openModules.has("__touched") ? openModules.has(m.id) : state === "active";
+  const node = state === "done" ? icon("checkPlain") : String(i + 1);
+  return `<li class="stage" data-state="${state}">
+    <details data-module="${esc(m.id)}" ${open ? "open" : ""}>
+      <summary class="stage-head">
+        <span class="stage-node" aria-hidden="true">${node}</span>
+        <span class="stage-text">
+          <span class="stage-name">${esc(m.name)}</span>
+          <span class="stage-objective">${esc(m.objective)}</span>
+        </span>
+        <span class="stage-count">${done}/${m.kps.length}<span class="sr-only"> ${esc(t.status.mastered)}</span></span>
+      </summary>
+      <ol class="stops">${m.kps.map(stopMarkup).join("")}</ol>
+    </details>
   </li>`;
 }
+
+function stopMarkup(k) {
+  const qualitative = typeof k.gate !== "number";
+  const meta = [esc(t.type[k.type] || k.type)];
+  if (k.review?.due) meta.push(`<span class="stop-flag">${icon("rotate")}${esc(t.reviewDue)}</span>`);
+  else if (k.review) meta.push(esc(t.reviewOn(formatDate(k.review.due_at))));
+  let value;
+  if (k.status === "mastered") value = `<span class="stop-value done">${icon("checkPlain")}<span class="sr-only">${esc(t.status.mastered)}</span></span>`;
+  else if (k.status === "deferred") value = `<span class="stop-value muted">${esc(t.status.deferred)}</span>`;
+  else if (k.status === "learning" && !qualitative) value = `<span class="stop-value">${Math.round(k.mastery * 100)}%<span class="stop-gate"> / ${Math.round(k.gate * 100)}</span></span>`;
+  else if (k.status === "learning") value = `<span class="stop-value muted">${esc(t.explainShort)}</span>`;
+  else value = `<span class="stop-value muted" aria-hidden="true">—</span>`;
+  const here = k.current ? ` <span class="here">${esc(t.youAreHere)}</span>` : "";
+  return `<li class="stop" data-status="${k.current ? "current" : k.status}" ${k.current ? 'aria-current="step"' : ""}>
+    <span class="stop-dot" aria-hidden="true"></span>
+    <span class="stop-body">
+      <span class="stop-name">${esc(k.name)}${here}</span>
+      <span class="stop-meta"><span class="sr-only">${esc(t.status[k.status])}. </span>${meta.join('<span aria-hidden="true"> · </span>')}</span>
+    </span>
+    ${value}
+  </li>`;
+}
+
 
 function renderReviews() {
   const due = data.due_reviews;
@@ -234,8 +264,8 @@ function render() {
     <div class="page-head"><h1>${esc(path.name)}</h1><p class="muted">${esc(t.goal)}: ${esc(path.goal)}</p></div>
     ${renderKpis(path)}
     <div class="grid-main">
-      <div class="stack">${path.current ? renderPending() : ""}${renderNext(path)}${renderRoadmap(path)}</div>
-      <div class="stack">${renderReviews()}${renderQuizzes()}${renderMistakes()}</div>
+      <div class="stack">${renderNext(path)}${renderRoadmap(path)}</div>
+      <div class="stack side">${path.current ? renderPending() : ""}${renderReviews()}${renderQuizzes()}${renderMistakes()}</div>
     </div>`;
   bindPendingForm();
 }
@@ -277,10 +307,16 @@ tabs.addEventListener("click", (e) => {
   openModules.clear();
   render();
 });
-main.addEventListener("toggle", (e) => {
-  const d = e.target.closest?.("details[data-module]");
-  if (d) d.open ? openModules.add(d.dataset.module) : openModules.delete(d.dataset.module);
-}, true);
+// Remember stations the learner opens or closes, so live refreshes keep their layout.
+main.addEventListener("click", (e) => {
+  const summary = e.target.closest?.("details[data-module] > summary");
+  if (!summary) return;
+  setTimeout(() => {
+    openModules.clear();
+    openModules.add("__touched");
+    document.querySelectorAll("details[data-module][open]").forEach((x) => openModules.add(x.dataset.module));
+  });
+});
 
 async function load() {
   // Don't re-render under the learner while they are typing an answer.
